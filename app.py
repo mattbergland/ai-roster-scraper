@@ -132,14 +132,60 @@ def scrape_beacons_roster(url):
                     return element ? (element.textContent || '').trim() : '';
                 }
                 
+                // Helper function to check if element is in sidebar
+                function isInSidebar(element) {
+                    let current = element;
+                    while (current) {
+                        // Check for common sidebar indicators
+                        const classNames = (current.className || '').toLowerCase();
+                        const id = (current.id || '').toLowerCase();
+                        
+                        if (
+                            classNames.includes('sidebar') ||
+                            classNames.includes('side-bar') ||
+                            classNames.includes('side_bar') ||
+                            id.includes('sidebar') ||
+                            id.includes('side-bar') ||
+                            id.includes('side_bar') ||
+                            // Check for common layout patterns
+                            classNames.includes('aside') ||
+                            classNames.includes('drawer') ||
+                            classNames.includes('panel') ||
+                            // Check position
+                            (window.getComputedStyle(current).position === 'fixed' && 
+                             (current.getBoundingClientRect().left === 0 || 
+                              current.getBoundingClientRect().right === window.innerWidth))
+                        ) {
+                            return true;
+                        }
+                        current = current.parentElement;
+                    }
+                    return false;
+                }
+
                 // Helper function to extract handle from social media URL
-                function extractHandle(url) {
+                function extractHandle(url, platform) {
                     if (!url) return '';
-                    const match = url.match(/[@/]([^/?]+)(?:[/?]|$)/);
+                    let match;
+                    if (platform === 'instagram') {
+                        match = url.match(/instagram\.com\/([^/?]+)/);
+                    } else if (platform === 'tiktok') {
+                        match = url.match(/tiktok\.com\/@([^/?]+)/);
+                    }
                     return match ? '@' + match[1] : '';
                 }
                 
                 const creators = new Set();
+                
+                // First, try to find the main content area
+                const mainContent = document.querySelector(
+                    'main, [role="main"], [id*="main"], [class*="main"], ' +
+                    '[id*="content"], [class*="content"], [role="grid"], ' +
+                    '[class*="grid"], [class*="list"], [class*="roster"]'
+                );
+                
+                // If we found a main content area, search within it
+                const searchRoot = mainContent || document.body;
                 
                 // Try different selectors for creator cards
                 const selectors = [
@@ -167,10 +213,22 @@ def scrape_beacons_roster(url):
                 const potentialCreators = new Set();
                 for (const selector of selectors) {
                     try {
-                        const elements = document.querySelectorAll(selector);
+                        const elements = searchRoot.querySelectorAll(selector);
                         elements.forEach(el => {
+                            // Skip elements in sidebar
+                            if (isInSidebar(el)) {
+                                return;
+                            }
+                            
                             // Check if this element or its children have social links or @ mentions
                             const html = el.innerHTML.toLowerCase();
+                            // Skip elements that look like roster owner info
+                            if (html.includes('total creators') || 
+                                html.includes('total reach') || 
+                                html.includes('talent management') ||
+                                html.includes('@clique-now.com')) {
+                                return;
+                            }
                             if (html.includes('instagram.com') || 
                                 html.includes('tiktok.com') || 
                                 html.includes('@') ||
@@ -203,57 +261,122 @@ def scrape_beacons_roster(url):
                         const allText = element.textContent;
                         console.log('Element text:', allText.slice(0, 200));
                         
-                        // Look for name in headers or strong/b tags
+                        // Look for name in headers or strong/b tags first
                         const nameElements = element.querySelectorAll('h1,h2,h3,h4,h5,h6,strong,b');
+                        console.log('Checking element for name:', element.outerHTML.slice(0, 200));
+                        
                         for (const el of nameElements) {
                             const text = getTextContent(el);
-                            if (text && text.split(' ').length >= 2 && !text.includes('@')) {
-                                creatorInfo.name = text;
+                            console.log('Potential name text:', text);
+                            // Skip common UI text that might be mistaken for names
+                            if (text && 
+                                !text.includes('@') && 
+                                !text.includes('http') && 
+                                !text.match(/\d{3,}/) &&
+                                !text.toLowerCase().includes('filter') &&
+                                !text.toLowerCase().includes('menu') &&
+                                !text.toLowerCase().includes('button') &&
+                                !text.toLowerCase().includes('search') &&
+                                !text.toLowerCase().includes('sort') &&
+                                !text.toLowerCase().includes('default') &&
+                                text.length > 1) {
+                                creatorInfo.name = text.trim();
+                                console.log('Found name:', creatorInfo.name);
                                 break;
                             }
                         }
                         
-                        // Look for username (@ mention)
-                        const allElements = element.querySelectorAll('*');
-                        for (const el of allElements) {
-                            const text = getTextContent(el);
-                            if (text && text.includes('@')) {
-                                creatorInfo.username = text;
-                                break;
+                        // If no name found in headers, look for first text node that's not a number or link
+                        if (!creatorInfo.name) {
+                            const walker = document.createTreeWalker(
+                                element,
+                                NodeFilter.SHOW_TEXT,
+                                null,
+                                false
+                            );
+                            let node;
+                            while (node = walker.nextNode()) {
+                                const text = node.textContent.trim();
+                                console.log('Checking text node:', text);
+                                if (text && 
+                                    !text.includes('@') && 
+                                    !text.includes('http') && 
+                                    !text.match(/\d{3,}/) &&
+                                    !text.toLowerCase().includes('filter') &&
+                                    !text.toLowerCase().includes('menu') &&
+                                    !text.toLowerCase().includes('button') &&
+                                    !text.toLowerCase().includes('search') &&
+                                    !text.toLowerCase().includes('sort') &&
+                                    !text.toLowerCase().includes('default') &&
+                                    text.length > 1) {
+                                    creatorInfo.name = text;
+                                    console.log('Found name from text node:', creatorInfo.name);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Extract follower counts from links
+                        const links = element.getElementsByTagName('a');
+                        for (const link of links) {
+                            const href = link.href || '';
+                            const linkText = getTextContent(link);
+                            // Match number followed by optional decimal and optional K/M suffix
+                            const followerMatch = linkText.match(/(\d+(?:\.\d+)?)\s*[KkMm]?/);
+                            const followerCount = followerMatch ? followerMatch[0].trim() : '';
+                            
+                            if (href.includes('tiktok.com')) {
+                                creatorInfo.tiktok_link = href;
+                                creatorInfo.tiktok_handle = extractHandle(href, 'tiktok');
+                                if (followerCount) creatorInfo.tiktok_followers = followerCount;
+                            } else if (href.includes('instagram.com')) {
+                                creatorInfo.instagram_link = href;
+                                creatorInfo.instagram_handle = extractHandle(href, 'instagram');
+                                if (followerCount) creatorInfo.instagram_followers = followerCount;
+                            } else if (href.includes('youtube.com')) {
+                                creatorInfo.youtube_link = href;
+                                if (followerCount) creatorInfo.youtube_subscribers = followerCount;
                             }
                         }
                         
                         // Look for metrics
-                        const metricTexts = Array.from(allElements).map(el => getTextContent(el));
+                        const metricTexts = Array.from(element.querySelectorAll('*')).map(el => getTextContent(el));
                         for (const text of metricTexts) {
                             if (text.includes('%')) {
                                 if (text.toLowerCase().includes('engagement')) {
-                                    creatorInfo.engagement = text;
+                                    // Extract number and % only
+                                    const match = text.match(/(\d+(?:\.\d+)?)\s*%/);
+                                    if (match) {
+                                        creatorInfo.engagement = match[1] + '% rate';
+                                    }
                                 } else if (text.toLowerCase().includes('female') || text.toLowerCase().includes('male')) {
-                                    creatorInfo.top_gender = text;
+                                    // Extract number and gender only
+                                    const match = text.match(/(\d+(?:\.\d+)?)\s*%\s*(fe)?male/i);
+                                    if (match) {
+                                        const [_, number, isFemale] = match;
+                                        creatorInfo.top_gender = `${number}% ${isFemale ? 'Female' : 'Male'}`;
+                                    }
                                 }
                             } else if (text.includes('18-24') || text.includes('25-34')) {
                                 creatorInfo.top_age = text;
                             }
                         }
                         
-                        // Get social links
-                        const links = element.getElementsByTagName('a');
-                        for (const link of links) {
-                            const href = link.href || '';
-                            if (href.includes('tiktok.com')) {
-                                creatorInfo.tiktok_link = href;
-                                creatorInfo.tiktok_handle = extractHandle(href);
-                            } else if (href.includes('instagram.com')) {
-                                creatorInfo.instagram_link = href;
-                                creatorInfo.instagram_handle = extractHandle(href);
-                            } else if (href.includes('youtube.com')) {
-                                creatorInfo.youtube_link = href;
+                        // Only add if we have meaningful data and it's not just empty fields
+                        if (creatorInfo.name || creatorInfo.tiktok_link || creatorInfo.instagram_link) {
+                            // Ensure name is present and valid
+                            if (!creatorInfo.name && creatorInfo.tiktok_handle) {
+                                creatorInfo.name = creatorInfo.tiktok_handle;
                             }
-                        }
-                        
-                        // Only add if we found some identifying information
-                        if (creatorInfo.name || creatorInfo.username || creatorInfo.tiktok_link || creatorInfo.instagram_link) {
+                            
+                            // Skip if the name is not valid
+                            if (!creatorInfo.name || 
+                                creatorInfo.name.toLowerCase() === 'default' ||
+                                creatorInfo.name.length <= 1) {
+                                console.log('Skipping invalid name:', creatorInfo.name);
+                                continue;
+                            }
+                            
                             console.log('Found creator:', creatorInfo);
                             creators.add(JSON.stringify(creatorInfo));
                         }
@@ -289,11 +412,46 @@ def scrape_beacons_roster(url):
         
         print(f"\nFound {len(creators)} creators")
         print("\nFirst few creators found:")
-        for creator in creators[:5]:
-            print(json.dumps(creator, indent=2))
+        
+        # Debug: print raw creators data
+        print("Raw creators data:")
+        creators_list = []
+        for creator in creators:
+            try:
+                if isinstance(creator, str):
+                    creator_dict = json.loads(creator)
+                else:
+                    creator_dict = creator
+                creators_list.append(creator_dict)
+                print(json.dumps(creator_dict, indent=2))
+            except json.JSONDecodeError as e:
+                print(f"Error parsing creator data: {e}")
+                print(f"Problematic creator data: {creator}")
         
         # Convert to DataFrame and CSV
-        df = pd.DataFrame(creators)
+        df = pd.DataFrame(creators_list)
+        
+        # Remove any duplicate entries based on name
+        if not df.empty and 'name' in df.columns:
+            # Remove rows with invalid names
+            df = df[df['name'].notna()]  # Remove None values
+            df = df[df['name'].str.strip() != '']  # Remove empty strings
+            df = df[~df['name'].str.lower().isin(['default', 'filter', 'menu', 'button', 'search', 'sort'])]  # Remove UI elements
+            
+            # Then remove duplicates
+            df = df.drop_duplicates(subset=['name'], keep='first')
+        
+        # Reorder columns to put name first and organize social media metrics together
+        column_order = ['name', 
+                      'instagram_handle', 'instagram_followers', 'instagram_link',
+                      'tiktok_handle', 'tiktok_followers', 'tiktok_link',
+                      'youtube_subscribers', 'youtube_link',
+                      'engagement', 'top_gender', 'top_age']
+        
+        # Only include columns that exist in the DataFrame
+        final_columns = [col for col in column_order if col in df.columns]
+        df = df[final_columns]
+        
         csv_buffer = io.StringIO()
         df.to_csv(csv_buffer, index=False)
         csv_buffer.seek(0)

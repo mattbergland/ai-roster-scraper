@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Roster Scraper{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h2 class="text-2xl font-bold mb-4">Scrape New Roster</h2>
+        <form id="scrapeForm" onsubmit="return scrapeRoster(event)" class="space-y-4">
+            <div>
+                <label for="url" class="block text-sm font-medium text-gray-700">Beacons.ai Roster URL</label>
+                <input type="text" 
+                       id="url" 
+                       name="url" 
+                       placeholder="https://beacons.ai/management/..." 
+                       required
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            <button type="submit" 
+                    id="submitButton"
+                    class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                Generate CSV
+            </button>
+        </form>
+        <div id="error" class="mt-4 text-red-600"></div>
+        <div id="loaderContainer" class="hidden mt-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <div class="mt-2 text-gray-600">Processing...</div>
+        </div>
+    </div>
+
+    <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-2xl font-bold mb-4">Search History</h2>
+        {% if searches %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Results</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for search in searches %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ search.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ search.url }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ search.result_count if search.result_count else '-' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                        {% if search.status == 'completed' %}
+                                            bg-green-100 text-green-800
+                                        {% elif search.status == 'failed' %}
+                                            bg-red-100 text-red-800
+                                        {% else %}
+                                            bg-yellow-100 text-yellow-800
+                                        {% endif %}">
+                                        {{ search.status }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-gray-500">No searches yet. Try scraping a roster above!</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function scrapeRoster(event) {
+    event.preventDefault();
+    
+    const form = document.getElementById('scrapeForm');
+    const submitButton = document.getElementById('submitButton');
+    const loaderContainer = document.getElementById('loaderContainer');
+    const errorDiv = document.getElementById('error');
+    
+    // Reset state
+    errorDiv.textContent = '';
+    submitButton.disabled = true;
+    loaderContainer.classList.remove('hidden');
+    
+    try {
+        const formData = new FormData(form);
+        const response = await fetch('/scrape', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Failed to scrape roster');
+        }
+        
+        // Handle successful response
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'roster_data.csv';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
+        // Refresh the page to show updated search history
+        window.location.reload();
+        
+    } catch (error) {
+        errorDiv.textContent = error.message;
+    } finally {
+        submitButton.disabled = false;
+        loaderContainer.classList.add('hidden');
+    }
+    
+    return false;
+}
+</script>
+{% endblock %}

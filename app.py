@@ -1,17 +1,17 @@
-from flask import Flask, render_template, request, jsonify, send_file, Response
+import os
+from flask import Flask, render_template, request, jsonify, Response
 from selenium import webdriver
+import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.common.exceptions import TimeoutException
 import pandas as pd
+import json
 import io
 import time
 import traceback
-import os
-import re
-import json
-import undetected_chromedriver as uc
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -471,7 +471,7 @@ def scrape_beacons_roster(url):
                 print("WebDriver closed successfully")
             except Exception as e:
                 print(f"Error closing WebDriver: {e}")
-                
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -480,9 +480,15 @@ def index():
 def scrape():
     try:
         data = request.get_json()
+        if not data:
+            data = request.form.to_dict()  # Try form data if JSON fails
+            
         url = data.get('url')
         if not url:
-            return jsonify({'error': 'No URL provided'}), 400
+            return jsonify({'error': 'URL is required'}), 400
+            
+        if 'beacons.ai' not in url:
+            return jsonify({'error': 'Please provide a valid Beacons.ai URL'}), 400
             
         csv_data, error = scrape_beacons_roster(url)
         if error:

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Pricing - Roster Scraper{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="text-4xl font-bold mb-8">Simple, Transparent Pricing</h1>
+    <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="px-6 py-8">
+            <h2 class="text-2xl font-bold text-gray-800">Monthly Subscription</h2>
+            <p class="mt-4 text-gray-600">Get unlimited access to our roster scraping tools</p>
+            <div class="mt-8">
+                <p class="text-4xl font-bold">$5</p>
+                <p class="text-gray-500">per month</p>
+            </div>
+            <ul class="mt-8 space-y-4">
+                <li class="flex items-center">
+                    <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span class="ml-3">Unlimited roster scraping</span>
+                </li>
+                <li class="flex items-center">
+                    <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span class="ml-3">CSV export</span>
+                </li>
+                <li class="flex items-center">
+                    <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span class="ml-3">Search history</span>
+                </li>
+            </ul>
+            {% if current_user.is_authenticated %}
+                {% if current_user.is_subscribed() %}
+                    <button disabled class="mt-8 w-full bg-gray-300 text-white py-3 px-6 rounded-lg">
+                        Already Subscribed
+                    </button>
+                {% else %}
+                    <button onclick="startSubscription()" class="mt-8 w-full bg-blue-500 text-white py-3 px-6 rounded-lg hover:bg-blue-600">
+                        Subscribe Now
+                    </button>
+                {% endif %}
+            {% else %}
+                <a href="{{ url_for('auth.signup') }}" class="mt-8 block w-full bg-blue-500 text-white text-center py-3 px-6 rounded-lg hover:bg-blue-600">
+                    Sign Up to Subscribe
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if current_user.is_authenticated and not current_user.is_subscribed() %}
+<script>
+async function startSubscription() {
+    try {
+        const response = await fetch('/subscribe', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        const data = await response.json();
+        if (data.checkoutUrl) {
+            window.location.href = data.checkoutUrl;
+        } else {
+            alert('Error creating checkout session');
+        }
+    } catch (error) {
+        alert('Error: ' + error);
+    }
+}
+</script>
+{% endif %}
+{% endblock %}

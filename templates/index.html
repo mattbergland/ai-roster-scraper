@@ -1,21 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beacons Roster Scraper</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Beacons.ai Roster Scraper</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             max-width: 800px;
             margin: 40px auto;
             padding: 20px;
-            background-color: #f5f5f5;
+            background: #f5f5f5;
         }
         
         .container {
-            background-color: white;
+            background: white;
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -24,58 +21,56 @@
         h1 {
             color: #333;
             margin-bottom: 30px;
+            text-align: center;
         }
         
-        .form-group {
+        .description {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .input-group {
             margin-bottom: 20px;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 10px;
-            font-weight: 500;
         }
         
         input[type="text"] {
             width: 100%;
             padding: 10px;
+            font-size: 16px;
             border: 1px solid #ddd;
             border-radius: 5px;
-            font-size: 16px;
             margin-bottom: 10px;
         }
         
         button {
-            background-color: #007bff;
+            background: #007bff;
             color: white;
             border: none;
-            padding: 12px 20px;
+            padding: 10px 20px;
+            font-size: 16px;
             border-radius: 5px;
             cursor: pointer;
-            width: 100%;
-            font-size: 16px;
             transition: background 0.2s;
+            width: 100%;
         }
         
         button:hover {
-            background-color: #0056b3;
+            background: #0056b3;
         }
         
         button:disabled {
-            background-color: #ccc;
+            background: #ccc;
             cursor: not-allowed;
         }
         
-        .error {
+        #error {
             color: #dc3545;
-            background-color: #f8d7da;
-            border: 1px solid #f5c6cb;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 20px;
+            margin-top: 10px;
             display: none;
         }
         
+        /* Loading Animation */
         .loader-container {
             display: none;
             margin-top: 20px;
@@ -93,10 +88,26 @@
         }
         
         .loader-text {
-            margin-top: 10px;
-            color: #666;
+            margin-top: 15px;
         }
         
+        .loader-text p {
+            margin: 10px 0;
+            font-size: 16px;
+            color: #004085;
+        }
+        
+        .loader-subtext {
+            font-size: 15px;
+            color: #004085;
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f4ff;
+            border-radius: 8px;
+            border: 1px solid #b8daff;
+        }
+        
+        /* Success Animation */
         .success-checkmark {
             display: none;
             color: #28a745;
@@ -106,6 +117,17 @@
             animation: scale-up 0.3s ease-in-out;
         }
         
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes scale-up {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Status Messages */
         .status-container {
             margin-top: 20px;
             padding: 15px;
@@ -125,48 +147,90 @@
             color: #721c24;
         }
         
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        /* Info Text */
+        .info-text {
+            margin: 15px 0;
+            padding: 15px;
+            background: #e8f4ff;
+            border: 1px solid #b8daff;
+            border-radius: 8px;
+            font-size: 15px;
+            color: #004085;
+            line-height: 1.5;
         }
         
-        @keyframes scale-up {
-            0% { transform: scale(0); }
-            100% { transform: scale(1); }
+        .info-text p {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .info-text p:before {
+            font-size: 18px;
+        }
+        
+        /* Timer */
+        .timer {
+            margin-top: 15px;
+            font-size: 16px;
+            color: #004085;
+            font-weight: 500;
+            background: #e8f4ff;
+            padding: 8px 15px;
+            border-radius: 20px;
+            display: inline-block;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Beacons Roster Scraper</h1>
-        <form id="scrapeForm" onsubmit="return scrapeRoster(event)">
-            <div class="form-group">
-                <label for="url">Beacons.ai Roster URL</label>
-                <input type="text" id="url" name="url" placeholder="https://beacons.ai/management/..." required>
+        <h1>Beacons.ai Roster Scraper</h1>
+        
+        <p class="description">
+            Enter a Beacons.ai roster URL below to extract creator data and download as CSV.
+        </p>
+        
+        <div class="input-group">
+            <input type="text" id="url" placeholder="Enter Beacons.ai roster URL">
+            <div class="info-text">
+                <p>⏱️ This process takes approximately 30-45 seconds</p>
+                <p>🪟 A new Chrome window will open - please don't close it while scraping</p>
             </div>
-            <button type="submit" id="submitButton">Generate CSV</button>
-        </form>
-        <div id="error" class="error"></div>
+            <button onclick="scrapeRoster()" id="scrapeButton">Scrape</button>
+        </div>
+        
         <div class="loader-container" id="loaderContainer">
             <div class="loader"></div>
-            <div class="loader-text">Processing...</div>
+            <div class="loader-text">
+                <p>Scraping roster data...</p>
+                <p class="loader-subtext">A Chrome window will open automatically. Please don't close it.</p>
+                <div id="timer" class="timer">Time elapsed: 0s</div>
+            </div>
         </div>
+        
         <div class="success-checkmark" id="successCheckmark">
             ✓
         </div>
+        
         <div class="status-container" id="statusContainer"></div>
     </div>
 
     <script>
-        async function scrapeRoster(event) {
-            event.preventDefault();
-            
-            const url = document.getElementById('url').value;
-            const errorDiv = document.getElementById('error');
+        let timerInterval;
+        let startTime;
+        
+        function updateTimer() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            document.getElementById('timer').textContent = `Time elapsed: ${elapsed}s`;
+        }
+        
+        async function scrapeRoster() {
+            const urlInput = document.getElementById('url');
+            const button = document.getElementById('scrapeButton');
             const loader = document.getElementById('loaderContainer');
             const successMark = document.getElementById('successCheckmark');
             const statusContainer = document.getElementById('statusContainer');
-            const submitButton = document.getElementById('submitButton');
             
             // Reset UI
             loader.style.display = 'none';
@@ -174,58 +238,70 @@
             statusContainer.style.display = 'none';
             statusContainer.className = 'status-container';
             
-            if (!url) {
-                errorDiv.textContent = 'Please enter a URL';
-                errorDiv.style.display = 'block';
-                return false;
+            // Clear previous timer if exists
+            if (timerInterval) {
+                clearInterval(timerInterval);
             }
             
-            errorDiv.style.display = 'none';
+            // Validate URL
+            if (!urlInput.value) {
+                showStatus('Please enter a URL', 'error');
+                return;
+            }
+            
+            // Disable input and button
+            urlInput.disabled = true;
+            button.disabled = true;
+            
+            // Show loader and start timer
             loader.style.display = 'block';
-            submitButton.disabled = true;
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
             
             try {
                 const response = await fetch('/scrape', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ url: url })
+                    body: JSON.stringify({url: urlInput.value})
                 });
-
-                const contentType = response.headers.get('content-type');
                 
-                if (contentType && contentType.includes('application/json')) {
-                    // Handle JSON response (error case)
-                    const data = await response.json();
-                    throw new Error(data.error || 'Failed to scrape data');
-                } else if (contentType && contentType.includes('text/csv')) {
-                    // Handle CSV response (success case)
-                    loader.style.display = 'none';
-                    successMark.style.display = 'block';
-                    showStatus('Successfully scraped roster data!', 'success');
-                    
-                    const blob = await response.blob();
-                    const downloadUrl = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = downloadUrl;
-                    a.download = 'beacons_roster.csv';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(downloadUrl);
-                    a.remove();
-                } else {
-                    throw new Error('Unexpected response from server');
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to scrape data');
                 }
+                
+                // Stop timer
+                clearInterval(timerInterval);
+                
+                // Success!
+                loader.style.display = 'none';
+                successMark.style.display = 'block';
+                showStatus('Successfully scraped roster data!', 'success');
+                
+                // Trigger download
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = 'creators.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(downloadUrl);
+                
             } catch (error) {
+                // Stop timer
+                clearInterval(timerInterval);
+                
                 loader.style.display = 'none';
                 showStatus(error.message, 'error');
             } finally {
-                submitButton.disabled = false;
+                // Re-enable input and button
+                urlInput.disabled = false;
+                button.disabled = false;
             }
-            
-            return false;
         }
         
         function showStatus(message, type) {

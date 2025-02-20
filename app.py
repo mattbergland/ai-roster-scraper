@@ -27,9 +27,11 @@ def scrape_beacons_roster(url):
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--disable-dev-shm-usage')
         chrome_options.add_argument('--window-size=1920,1080')
+        chrome_options.binary_location = os.getenv("CHROME_BIN", "/usr/bin/google-chrome-stable")
         
         try:
-            driver = webdriver.Chrome(options=chrome_options)
+            service = Service(executable_path=os.getenv("CHROME_DRIVER_PATH", "/usr/local/bin/chromedriver"))
+            driver = webdriver.Chrome(service=service, options=chrome_options)
             driver.set_window_size(1920, 1080)
         except Exception as e:
             print(f"Error initializing Chrome driver: {e}")

@@ -22,6 +22,7 @@ def scrape_beacons_roster(url):
         
         # Initialize undetected-chromedriver
         options = uc.ChromeOptions()
+        options.binary_location = os.getenv("CHROME_BIN", "/usr/bin/chromium")
         options.add_argument('--window-size=1920,1080')
         
         try:

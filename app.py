@@ -26,16 +26,38 @@ def scrape_beacons_roster(url):
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
         chrome_options.add_argument('--window-size=1920,1080')
-        chrome_options.binary_location = os.getenv('CHROME_BINARY', '/usr/bin/brave-browser')
+        
+        # Get Chrome paths from environment
+        chrome_binary = os.getenv('CHROME_BINARY', '/usr/bin/google-chrome-stable')
+        chrome_driver_path = os.getenv('CHROME_DRIVER_PATH', '/usr/local/bin/chromedriver')
+        
+        print(f"Chrome binary path: {chrome_binary}")
+        print(f"ChromeDriver path: {chrome_driver_path}")
+        
+        # Verify Chrome binary exists
+        if not os.path.exists(chrome_binary):
+            raise Exception(f"Chrome binary not found at {chrome_binary}")
+        
+        # Verify ChromeDriver exists
+        if not os.path.exists(chrome_driver_path):
+            raise Exception(f"ChromeDriver not found at {chrome_driver_path}")
+            
+        chrome_options.binary_location = chrome_binary
         
         try:
-            service = Service(executable_path=os.getenv('CHROME_DRIVER_PATH', '/usr/local/bin/chromedriver'))
+            print("Initializing Chrome service...")
+            service = Service(executable_path=chrome_driver_path)
+            print("Creating Chrome driver...")
             driver = webdriver.Chrome(service=service, options=chrome_options)
+            print("Setting window size...")
             driver.set_window_size(1920, 1080)
+            print("Chrome driver initialized successfully!")
         except Exception as e:
-            print(f"Error initializing Chrome driver: {e}")
-            return None, f"Failed to initialize Chrome driver: {str(e)}"
+            print(f"Failed to initialize Chrome driver: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
+            raise
         
         print("\nNavigating to URL...")
         try:

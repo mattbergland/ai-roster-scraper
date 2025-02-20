@@ -3,17 +3,25 @@ services:
     name: beacons-roster-scraper
     env: python
     buildCommand: |
-      # Add Chrome repository
-      sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
-      echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg arch=amd64] https://brave-browser-apt-release.s3.brave.com/ stable main" | sudo tee /etc/apt/sources.list.d/brave-browser-release.list
+      # Install Chrome
       sudo apt-get update
-      sudo apt-get install -y brave-browser
+      sudo apt-get install -y wget gnupg2
+      wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+      echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+      sudo apt-get update
+      sudo apt-get install -y google-chrome-stable
       
       # Install ChromeDriver
-      CHROME_VERSION=$(brave-browser --version | cut -d ' ' -f 2 | cut -d '.' -f 1)
-      wget -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}
+      CHROME_VERSION=$(google-chrome --version | cut -d " " -f3 | cut -d "." -f1)
+      wget https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION} -O /tmp/chrome_version
+      DRIVER_VERSION=$(cat /tmp/chrome_version)
+      wget https://chromedriver.storage.googleapis.com/${DRIVER_VERSION}/chromedriver_linux64.zip -O /tmp/chromedriver.zip
       sudo unzip /tmp/chromedriver.zip -d /usr/local/bin/
       sudo chmod +x /usr/local/bin/chromedriver
+      
+      # Verify installations
+      google-chrome --version
+      chromedriver --version
       
       # Install Python dependencies
       pip install -r requirements.txt
@@ -22,7 +30,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.7
       - key: CHROME_BINARY
-        value: /usr/bin/brave-browser
+        value: /usr/bin/google-chrome-stable
       - key: CHROME_DRIVER_PATH
         value: /usr/local/bin/chromedriver
     plan: free

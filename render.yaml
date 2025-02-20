@@ -3,45 +3,52 @@ services:
     name: beacons-roster-scraper
     env: python
     buildCommand: |
-      # Add Chrome repository and install Chrome
+      # Install system dependencies for Puppeteer
       sudo apt-get update
-      sudo apt-get install -y curl unzip xvfb libxi6 libgconf-2-4
-      wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-      sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
-      sudo apt-get update
-      sudo apt-get install -y google-chrome-stable
-      
-      # Install ChromeDriver
-      CHROME_VERSION=$(google-chrome --version | cut -d " " -f3)
-      CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION%%.*}")
-      wget -q "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
-      sudo unzip -o chromedriver_linux64.zip -d /usr/local/bin/
-      sudo chmod +x /usr/local/bin/chromedriver
-      
-      # Set up display for Chrome
-      sudo apt-get install -y xvfb
-      export DISPLAY=:99
-      sudo Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
-      
-      # Verify installations
-      google-chrome --version
-      chromedriver --version
+      sudo apt-get install -y \
+        gconf-service \
+        libasound2 \
+        libatk1.0-0 \
+        libc6 \
+        libcairo2 \
+        libcups2 \
+        libdbus-1-3 \
+        libexpat1 \
+        libfontconfig1 \
+        libgcc1 \
+        libgconf-2-4 \
+        libgdk-pixbuf2.0-0 \
+        libglib2.0-0 \
+        libgtk-3-0 \
+        libnspr4 \
+        libpango-1.0-0 \
+        libpangocairo-1.0-0 \
+        libstdc++6 \
+        libx11-6 \
+        libx11-xcb1 \
+        libxcb1 \
+        libxcomposite1 \
+        libxcursor1 \
+        libxdamage1 \
+        libxext6 \
+        libxfixes3 \
+        libxi6 \
+        libxrandr2 \
+        libxrender1 \
+        libxss1 \
+        libxtst6 \
+        ca-certificates \
+        fonts-liberation \
+        libappindicator1 \
+        libnss3 \
+        lsb-release \
+        xdg-utils \
+        wget
       
       # Install Python dependencies
       pip install -r requirements.txt
-    startCommand: |
-      # Start Xvfb
-      Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
-      export DISPLAY=:99
-      # Start the app
-      gunicorn app:app
+    startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.7
-      - key: CHROME_BINARY
-        value: /usr/bin/google-chrome-stable
-      - key: CHROME_DRIVER_PATH
-        value: /usr/local/bin/chromedriver
-      - key: DISPLAY
-        value: ":99"
     plan: free

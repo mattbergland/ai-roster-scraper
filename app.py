@@ -1,34 +1,20 @@
 import os
 from flask import Flask, render_template, request, jsonify, Response
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
 import pandas as pd
 import json
 import io
 import time
 import traceback
 from datetime import datetime
+import asyncio
+from pyppeteer import launch
 
 app = Flask(__name__)
 
-def scrape_beacons_roster(url):
-    driver = None
+async def scrape_beacons_roster(url):
+    browser = None
     try:
         print(f"\n{'='*80}\nStarting scrape of URL: {url}\n{'='*80}\n")
-        
-        # Initialize Chrome options
-        chrome_options = Options()
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument('--disable-gpu')
-        chrome_options.add_argument('--disable-extensions')
-        chrome_options.add_argument('--window-size=1920,1080')
-        chrome_options.add_argument('--start-maximized')
         
         # Get Chrome paths from environment
         chrome_binary = os.getenv('CHROME_BINARY', '/usr/bin/google-chrome-stable')
@@ -46,45 +32,40 @@ def scrape_beacons_roster(url):
         if not os.path.exists(chrome_driver_path):
             raise Exception(f"ChromeDriver not found at {chrome_driver_path}")
             
-        chrome_options.binary_location = chrome_binary
+        browser = await launch({
+            'executablePath': chrome_binary,
+            'args': [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--window-size=1920,1080'
+            ],
+            'headless': True
+        })
         
-        try:
-            print("Initializing Chrome service...")
-            service = Service(executable_path=chrome_driver_path)
-            print("Creating Chrome driver...")
-            driver = webdriver.Chrome(service=service, options=chrome_options)
-            print("Setting window size...")
-            driver.set_window_size(1920, 1080)
-            print("Chrome driver initialized successfully!")
-        except Exception as e:
-            print(f"Failed to initialize Chrome driver: {str(e)}")
-            print(f"Traceback: {traceback.format_exc()}")
-            raise
+        page = await browser.newPage()
+        await page.setViewport({'width': 1920, 'height': 1080})
         
         print("\nNavigating to URL...")
-        try:
-            driver.get(url)
-        except TimeoutException:
-            return None, "Page load timed out. Please try again."
+        await page.goto(url, {'waitUntil': 'networkidle0', 'timeout': 60000})
         
         # Wait for initial page load
         print("\nWaiting for page load...")
-        WebDriverWait(driver, 30).until(
-            EC.presence_of_element_located((By.TAG_NAME, "body"))
-        )
+        await page.waitForSelector('body', {'timeout': 30000})
         
         # Wait for Cloudflare to clear
         print("\nWaiting for Cloudflare check...")
-        time.sleep(10)
+        await asyncio.sleep(10)
         
-        print("\nPage title:", driver.title)
-        print("Current URL:", driver.current_url)
+        print("\nPage title:", await page.title())
+        print("Current URL:", await page.url())
         
         # Function to check if content is loaded
-        def is_content_loaded():
+        async def is_content_loaded():
             try:
                 # Try different indicators that content is loaded
-                return driver.execute_script("""
+                return await page.evaluate("""
                     // Check if we see any creator-like content
                     const hasCreatorContent = document.body.innerHTML.toLowerCase().includes('creator') ||
                                            document.body.innerHTML.toLowerCase().includes('roster') ||
@@ -120,18 +101,18 @@ def scrape_beacons_roster(url):
         max_wait = 30
         start_time = time.time()
         while time.time() - start_time < max_wait:
-            if is_content_loaded():
+            if await is_content_loaded():
                 print("Content detected!")
                 break
             print("Waiting for content...")
-            time.sleep(2)
+            await asyncio.sleep(2)
         
         # Additional wait for any animations
-        time.sleep(5)
+        await asyncio.sleep(5)
         
         # Try to scroll the page to trigger lazy loading
         print("\nScrolling page to trigger lazy loading...")
-        driver.execute_script("""
+        await page.evaluate("""
             function smoothScroll() {
                 const height = document.body.scrollHeight;
                 const steps = 10;
@@ -151,11 +132,11 @@ def scrape_beacons_roster(url):
         """)
         
         # Wait for any lazy loaded content
-        time.sleep(5)
+        await asyncio.sleep(5)
         
         # Try to find content using JavaScript with more specific selectors
         print("\nSearching for creator data...")
-        creators = driver.execute_script("""
+        creators = await page.evaluate("""
             function findCreators() {
                 // Helper function to extract text content
                 function getTextContent(element) {
@@ -425,18 +406,18 @@ def scrape_beacons_roster(url):
         if not creators:
             print("\nNo creators found. Debug information:")
             print("\nPage source preview:")
-            print(driver.page_source[:2000])  # Show more of the page source
+            print(await page.content()[:2000])  # Show more of the page source
             
             # Take a screenshot
             print("\nTaking screenshot...")
-            driver.save_screenshot("debug_screenshot.png")
+            await page.screenshot({'path': "debug_screenshot.png"})
             
             # Try to get any error messages
-            error_elements = driver.find_elements(By.CSS_SELECTOR, '.error,#error,[class*="error"],[id*="error"]')
+            error_elements = await page.querySelectorAll('.error,#error,[class*="error"],[id*="error"]')
             if error_elements:
                 print("\nFound error messages on page:")
                 for elem in error_elements:
-                    print(elem.text)
+                    print(await elem.textContent())
             
             return None, "No creators found. The page might be using a different structure or might require authentication."
         
@@ -484,59 +465,42 @@ def scrape_beacons_roster(url):
         
         csv_buffer = io.StringIO()
         df.to_csv(csv_buffer, index=False)
-        csv_buffer.seek(0)
+        csv_data = csv_buffer.getvalue()
         
-        return csv_buffer.getvalue(), None
+        return csv_data, None
         
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")
-        print("Full traceback:")
-        print(traceback.format_exc())
-        return None, f"An error occurred while scraping: {str(e)}"
-    
+        error_msg = f"An error occurred while scraping: {str(e)}"
+        print(f"Error: {error_msg}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return None, error_msg
+        
     finally:
-        if driver:
-            try:
-                driver.quit()
-                print("WebDriver closed successfully")
-            except Exception as e:
-                print(f"Error closing WebDriver: {e}")
+        if browser:
+            await browser.close()
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/scrape', methods=['POST'])
-def scrape():
+async def scrape():
+    url = request.form.get('url')
+    if not url:
+        return jsonify({'error': 'No URL provided'}), 400
+        
     try:
-        data = request.get_json()
-        if not data:
-            data = request.form.to_dict()  # Try form data if JSON fails
-            
-        url = data.get('url')
-        if not url:
-            return jsonify({'error': 'URL is required'}), 400
-            
-        if 'beacons.ai' not in url:
-            return jsonify({'error': 'Please provide a valid Beacons.ai URL'}), 400
-            
-        csv_data, error = scrape_beacons_roster(url)
+        csv_data, error = await scrape_beacons_roster(url)
         if error:
-            return jsonify({'error': error}), 400
+            return jsonify({'error': error}), 500
             
         return Response(
             csv_data,
-            mimetype='text/csv',
-            headers={
-                'Content-Disposition': 'attachment; filename=creators.csv'
-            }
+            mimetype="text/csv",
+            headers={"Content-disposition": f"attachment; filename=beacons_roster_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"}
         )
-        
     except Exception as e:
-        print(f"Error in /scrape endpoint: {str(e)}")
-        print("Full traceback:")
-        print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(port=5001, debug=True)
+    app.run(debug=True)

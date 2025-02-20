@@ -24,10 +24,11 @@ def scrape_beacons_roster(url):
         # Initialize Chrome options
         chrome_options = Options()
         chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--headless')
         chrome_options.add_argument('--disable-dev-shm-usage')
         chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--disable-extensions')
         chrome_options.add_argument('--window-size=1920,1080')
+        chrome_options.add_argument('--start-maximized')
         
         # Get Chrome paths from environment
         chrome_binary = os.getenv('CHROME_BINARY', '/usr/bin/google-chrome-stable')
@@ -35,6 +36,7 @@ def scrape_beacons_roster(url):
         
         print(f"Chrome binary path: {chrome_binary}")
         print(f"ChromeDriver path: {chrome_driver_path}")
+        print(f"Display: {os.getenv('DISPLAY', 'Not set')}")
         
         # Verify Chrome binary exists
         if not os.path.exists(chrome_binary):

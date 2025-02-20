@@ -1,13 +1,13 @@
-import os
-from quart import Quart, request, jsonify, Response, render_template
+from quart import Quart, request, render_template, Response
 import pandas as pd
-import json
-import io
-import time
+from pyppeteer import launch
 import traceback
 from datetime import datetime
+import io
+import json
+import os
 import asyncio
-from pyppeteer import launch
+import time
 
 app = Quart(__name__)
 
@@ -485,16 +485,17 @@ async def index():
 
 @app.route('/scrape', methods=['POST'])
 async def scrape():
-    form = await request.form
-    url = form.get('url')
-    
-    if not url:
-        return jsonify({'error': 'No URL provided'}), 400
-        
     try:
+        form = await request.form
+        url = form.get('url')
+        
+        if not url:
+            return {'error': 'URL is required'}, 400
+            
         csv_data, error = await scrape_beacons_roster(url)
+        
         if error:
-            return jsonify({'error': error}), 500
+            return {'error': error}, 500
             
         return Response(
             csv_data,
@@ -502,7 +503,7 @@ async def scrape():
             headers={"Content-disposition": f"attachment; filename=beacons_roster_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"}
         )
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return {'error': str(e)}, 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()

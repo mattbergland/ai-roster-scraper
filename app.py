@@ -7,7 +7,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
-from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 import json
 import io
@@ -28,10 +27,10 @@ def scrape_beacons_roster(url):
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--disable-dev-shm-usage')
         chrome_options.add_argument('--window-size=1920,1080')
-        chrome_options.binary_location = '/usr/bin/chromium-browser'
+        chrome_options.binary_location = os.getenv('CHROME_BINARY', '/usr/bin/brave-browser')
         
         try:
-            service = Service(ChromeDriverManager(chrome_type="chromium").install())
+            service = Service(executable_path=os.getenv('CHROME_DRIVER_PATH', '/usr/local/bin/chromedriver'))
             driver = webdriver.Chrome(service=service, options=chrome_options)
             driver.set_window_size(1920, 1080)
         except Exception as e:

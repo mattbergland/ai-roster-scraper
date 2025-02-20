@@ -3,9 +3,17 @@ services:
     name: beacons-roster-scraper
     env: python
     buildCommand: |
-      # Install Chrome
+      # Add Chrome repository
+      sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+      echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg arch=amd64] https://brave-browser-apt-release.s3.brave.com/ stable main" | sudo tee /etc/apt/sources.list.d/brave-browser-release.list
       sudo apt-get update
-      sudo apt-get install -y chromium-browser
+      sudo apt-get install -y brave-browser
+      
+      # Install ChromeDriver
+      CHROME_VERSION=$(brave-browser --version | cut -d ' ' -f 2 | cut -d '.' -f 1)
+      wget -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}
+      sudo unzip /tmp/chromedriver.zip -d /usr/local/bin/
+      sudo chmod +x /usr/local/bin/chromedriver
       
       # Install Python dependencies
       pip install -r requirements.txt
@@ -13,6 +21,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.7
-      - key: WDM_LOG_LEVEL
-        value: "0"
+      - key: CHROME_BINARY
+        value: /usr/bin/brave-browser
+      - key: CHROME_DRIVER_PATH
+        value: /usr/local/bin/chromedriver
     plan: free

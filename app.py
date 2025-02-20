@@ -1,7 +1,8 @@
 import os
 from flask import Flask, render_template, request, jsonify, Response
 from selenium import webdriver
-import undetected_chromedriver as uc
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -20,16 +21,15 @@ def scrape_beacons_roster(url):
     try:
         print(f"\n{'='*80}\nStarting scrape of URL: {url}\n{'='*80}\n")
         
-        # Initialize undetected-chromedriver with server-specific options
-        options = uc.ChromeOptions()
-        options.binary_location = os.getenv("CHROME_BIN", "/usr/bin/chromium")
-        options.add_argument('--no-sandbox')
-        options.add_argument('--headless')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--window-size=1920,1080')
+        # Initialize Chrome options
+        chrome_options = Options()
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--window-size=1920,1080')
         
         try:
-            driver = uc.Chrome(options=options)
+            driver = webdriver.Chrome(options=chrome_options)
             driver.set_window_size(1920, 1080)
         except Exception as e:
             print(f"Error initializing Chrome driver: {e}")

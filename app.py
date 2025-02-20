@@ -10,6 +10,7 @@ import asyncio
 import time
 
 app = Quart(__name__)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 async def scrape_beacons_roster(url):
     browser = None

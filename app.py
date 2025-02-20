@@ -29,11 +29,7 @@ def scrape_beacons_roster(url):
         options.add_argument('--window-size=1920,1080')
         
         try:
-            driver = uc.Chrome(
-                options=options,
-                browser_executable_path=os.getenv("CHROME_BIN", "/usr/bin/chromium"),
-                driver_executable_path="/usr/bin/chromedriver"
-            )
+            driver = uc.Chrome(options=options)
             driver.set_window_size(1920, 1080)
         except Exception as e:
             print(f"Error initializing Chrome driver: {e}")

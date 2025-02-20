@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, jsonify, Response
+from quart import Quart, request, jsonify, Response, render_template
 import pandas as pd
 import json
 import io
@@ -9,7 +9,7 @@ from datetime import datetime
 import asyncio
 from pyppeteer import launch
 
-app = Flask(__name__)
+app = Quart(__name__)
 
 async def scrape_beacons_roster(url):
     browser = None
@@ -480,12 +480,14 @@ async def scrape_beacons_roster(url):
             await browser.close()
 
 @app.route('/')
-def index():
-    return render_template('index.html')
+async def index():
+    return await render_template('index.html')
 
 @app.route('/scrape', methods=['POST'])
 async def scrape():
-    url = request.form.get('url')
+    form = await request.form
+    url = form.get('url')
+    
     if not url:
         return jsonify({'error': 'No URL provided'}), 400
         

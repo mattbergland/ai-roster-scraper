@@ -4,16 +4,8 @@ services:
     env: python
     buildCommand: |
       # Install Chrome
-      sudo wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-      sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
       sudo apt-get update
-      sudo apt-get install -y google-chrome-stable
-      
-      # Install ChromeDriver
-      CHROME_VERSION=$(google-chrome --version | cut -d ' ' -f 3 | cut -d '.' -f 1)
-      sudo wget -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}
-      sudo unzip /tmp/chromedriver.zip -d /usr/local/bin/
-      sudo chmod +x /usr/local/bin/chromedriver
+      sudo apt-get install -y chromium-browser
       
       # Install Python dependencies
       pip install -r requirements.txt
@@ -21,8 +13,6 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.7
-      - key: CHROME_DRIVER_PATH
-        value: /usr/local/bin/chromedriver
-      - key: CHROME_BIN
-        value: /usr/bin/google-chrome-stable
+      - key: WDM_LOG_LEVEL
+        value: "0"
     plan: free

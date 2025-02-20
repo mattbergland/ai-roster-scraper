@@ -20,13 +20,20 @@ def scrape_beacons_roster(url):
     try:
         print(f"\n{'='*80}\nStarting scrape of URL: {url}\n{'='*80}\n")
         
-        # Initialize undetected-chromedriver
+        # Initialize undetected-chromedriver with server-specific options
         options = uc.ChromeOptions()
         options.binary_location = os.getenv("CHROME_BIN", "/usr/bin/chromium")
+        options.add_argument('--no-sandbox')
+        options.add_argument('--headless')
+        options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--window-size=1920,1080')
         
         try:
-            driver = uc.Chrome(options=options)
+            driver = uc.Chrome(
+                options=options,
+                browser_executable_path=os.getenv("CHROME_BIN", "/usr/bin/chromium"),
+                driver_executable_path="/usr/bin/chromedriver"
+            )
             driver.set_window_size(1920, 1080)
         except Exception as e:
             print(f"Error initializing Chrome driver: {e}")

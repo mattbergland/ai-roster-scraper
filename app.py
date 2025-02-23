@@ -1,4 +1,4 @@
-from quart import Quart, request, render_template, Response
+from quart import Quart, request, render_template, Response, jsonify
 import pandas as pd
 from pyppeteer import launch
 import traceback
@@ -10,7 +10,10 @@ import asyncio
 import time
 
 app = Quart(__name__)
-app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config.update(
+    TEMPLATES_AUTO_RELOAD=True,
+    PROVIDE_AUTOMATIC_OPTIONS=True
+)
 
 async def scrape_beacons_roster(url):
     browser = None

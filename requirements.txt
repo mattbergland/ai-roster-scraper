@@ -2,5 +2,4 @@ quart==0.19.4
 pyppeteer==1.0.2
 pandas==2.0.3
 numpy==1.23.2
-gunicorn==21.2.0
 hypercorn==0.15.0

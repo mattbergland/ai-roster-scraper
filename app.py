@@ -1,4 +1,4 @@
-from quart import Quart, request, render_template, Response, jsonify
+from flask import Flask, request, send_file, jsonify
 import pandas as pd
 from pyppeteer import launch
 import traceback
@@ -9,10 +9,9 @@ import os
 import asyncio
 import time
 
-app = Quart(__name__)
+app = Flask(__name__)
 app.config.update(
-    TEMPLATES_AUTO_RELOAD=True,
-    PROVIDE_AUTOMATIC_OPTIONS=True
+    TEMPLATES_AUTO_RELOAD=True
 )
 
 async def scrape_beacons_roster(url):
@@ -484,14 +483,14 @@ async def scrape_beacons_roster(url):
             await browser.close()
 
 @app.route('/')
-async def index():
-    return await render_template('index.html')
+def index():
+    return send_file('index.html')
 
 @app.route('/scrape', methods=['POST'])
 async def scrape():
     try:
-        form = await request.form
-        url = form.get('url')
+        data = request.get_json()
+        url = data.get('url')
         
         if not url:
             return {'error': 'URL is required'}, 400
@@ -501,14 +500,15 @@ async def scrape():
         if error:
             return {'error': error}, 500
             
-        return Response(
-            csv_data,
+        return send_file(
+            io.BytesIO(csv_data.encode('utf-8')),
             mimetype="text/csv",
-            headers={"Content-disposition": f"attachment; filename=beacons_roster_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"}
+            attachment_filename=f"beacons_roster_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            as_attachment=True
         )
     except Exception as e:
         return {'error': str(e)}, 500
 
 if __name__ == '__main__':
-    import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)

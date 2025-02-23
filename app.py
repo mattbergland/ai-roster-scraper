@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, render_template
 import pandas as pd
 from pyppeteer import launch
 import traceback
@@ -484,7 +484,7 @@ async def scrape_beacons_roster(url):
 
 @app.route('/')
 def index():
-    return send_file('index.html')
+    return render_template('index.html')
 
 @app.route('/scrape', methods=['POST'])
 async def scrape():

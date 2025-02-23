@@ -47,10 +47,7 @@ services:
       
       # Install Python dependencies
       pip install -r requirements.txt
-      
-      # Make run script executable
-      chmod +x run.sh
-    startCommand: ./run.sh
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --worker-class aiohttp.worker.GunicornWebWorker
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.7

@@ -47,7 +47,6 @@ services:
       
       # Install Python dependencies
       pip install -r requirements.txt
-    startCommand: hypercorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.7
